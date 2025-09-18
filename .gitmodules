@@ -1,0 +1,10 @@
+[submodule "deps/paho.mqtt.c"]
+	path = deps/paho.mqtt.c
+	url = https://github.com/eclipse-paho/paho.mqtt.c
+[submodule "deps/glfw"]
+	path = deps/glfw
+	url = https://github.com/glfw/glfw
+[submodule "deps/imgui"]
+	path = deps/imgui
+	url = https://github.com/ocornut/imgui
+	branch = docking
