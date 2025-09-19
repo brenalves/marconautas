@@ -101,6 +101,12 @@ int main()
                 }
 
                 MQTTClient_connectOptions conn_options = MQTTClient_connectOptions_initializer;
+                MQTTClient_willOptions will_option = MQTTClient_willOptions_initializer;
+                will_option.message = "offline";
+                will_option.topicName = "marconautas/marcohub";
+                will_option.qos = 1;
+                will_option.retained = 1;
+                conn_options.will = &will_option;
                 conn_options.keepAliveInterval = 20;
                 conn_options.cleansession = 1;
                 if ((rc = MQTTClient_connect(client, &conn_options)) != MQTTCLIENT_SUCCESS)
@@ -167,7 +173,8 @@ int main()
                 }
                 else
                 {
-                    memset(message.content, 0, sizeof(message));
+                    // memset(message.content, 0, sizeof(message));
+                    message.content[0] = '\0';
                 }
             }
 
