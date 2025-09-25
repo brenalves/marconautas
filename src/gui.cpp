@@ -11,6 +11,9 @@ GUI::GUI(GLFWwindow *window)
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // IF using Docking Branch
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+    // ini file at root folder
+    io.IniFilename = "../ui.ini";
+
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplOpenGL3_Init();
