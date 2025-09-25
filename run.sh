@@ -1,4 +1,4 @@
-sudo apt install pkg-config libwayland-dev libxrandr-dev libxkbcommon-dev libxinerama-dev libxcursor-dev
+sudo apt install pkg-config libwayland-dev libxrandr-dev libxkbcommon-dev libxinerama-dev libxcursor-dev libxi-dev
 
 git submodule init
 git submodule update
