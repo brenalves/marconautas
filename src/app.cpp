@@ -3,7 +3,7 @@
 App *App::s_instance = nullptr;
 
 App::App()
-    : m_running(true)
+    : m_running(true), m_isLogged(false)
 {
     if (!glfwInit())
     {
@@ -11,6 +11,8 @@ App::App()
     }
 
     glfwDefaultWindowHints();
+
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 
     m_window = glfwCreateWindow(WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT, "Marconautas", nullptr, nullptr);
     if (!m_window)
@@ -25,6 +27,12 @@ App::App()
     });
 
     m_gui = new GUI(m_window);
+
+    m_gui->setLoginSubmitCallback([](char* username, char* errorPtr) -> bool {
+        // make connection with broker via mqtt
+        // if success, set m_isLogged variable true to change page and return true;
+        // if error, return false
+    });
 }
 
 App::~App()
@@ -71,29 +79,32 @@ void App::run()
             ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
     
-            if(ImGui::Begin("Active Users"))
-            {
-                for(int i = 0; i < 10; i++)
-                {
-                    ImGui::Text("User %d", i);
-                }
-            }
-            ImGui::End();
+            if(!m_isLogged)
+                m_gui->renderLogin();
 
-            if(ImGui::Begin("Options"))
-            {
-                if(ImGui::Button("Disconnect"))
-                {
-                    close();
-                }
-            }
-            ImGui::End();
+            // if(ImGui::Begin("Active Users"))
+            // {
+            //     for(int i = 0; i < 10; i++)
+            //     {
+            //         ImGui::Text("User %d", i);
+            //     }
+            // }
+            // ImGui::End();
 
-            if(ImGui::Begin("Marcohub"))
-            {
-                ImGui::Text("MarcoHub");
-            }
-            ImGui::End();
+            // if(ImGui::Begin("Options"))
+            // {
+            //     if(ImGui::Button("Disconnect"))
+            //     {
+            //         close();
+            //     }
+            // }
+            // ImGui::End();
+
+            // if(ImGui::Begin("Marcohub"))
+            // {
+            //     ImGui::Text("MarcoHub");
+            // }
+            // ImGui::End();
         }
         ImGui::End();
 

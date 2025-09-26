@@ -1,6 +1,9 @@
 #include "gui.h"
 
+#include <iostream>
+
 GUI::GUI(GLFWwindow *window)
+    : m_loginStatus(NOPE), m_loginTextField("")
 {
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -39,4 +42,32 @@ void GUI::endRender()
 {
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void GUI::renderLogin()
+{
+    if(m_loginStatus == FAIL && (glfwGetTime() - m_loginFailTime > LOGIN_FAIL_TIME_FADE_OUT))
+        m_loginStatus = NOPE;
+
+    if(ImGui::Begin("Login"))
+    {
+        ImGui::Text("Bem vindo ao Marcomundo");
+        ImGui::Text("Your username:");
+        ImGui::SameLine();
+        ImGui::InputText("##inputLogin", m_loginTextField, sizeof(m_loginTextField));
+        if(ImGui::Button("Entrar"))
+        {
+            if(!m_loginCallback(m_loginTextField, m_loginError))
+            {
+                m_loginStatus = FAIL;
+                m_loginFailTime = glfwGetTime();
+            }
+        }
+
+        if(m_loginStatus == FAIL)
+        {
+            ImGui::Text("%s", m_loginError);
+        }
+    }
+    ImGui::End();
 }

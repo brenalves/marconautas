@@ -25,6 +25,7 @@ public:
 
 private:
     bool m_running;
+    bool m_isLogged;
 
     GLFWwindow* m_window;
 
