@@ -153,6 +153,7 @@ void App::run()
                 }
 
                 std::cout << "Cliente conectado, bem vindo(a) " << m_username << std::endl;
+                glfwSetWindowTitle(m_window, ("Marconautas - " + std::string(m_username)).c_str());
 
                 // Inscrição no tópico MarcoHub e tópico pessoal
                 try
@@ -160,6 +161,7 @@ void App::run()
                     MQTTSubscribe("marconautas/marcohub");
                     std::string ownTopic = "marconautas/user/" + std::string(m_username);
                     MQTTSubscribe(ownTopic.c_str());
+                    MQTTSubscribe("marconautas/activeusers/#");
                 }
                 catch (const std::exception &e)
                 {
@@ -169,8 +171,9 @@ void App::run()
 
                 std::cout << "Inscrições realizadas com sucesso" << std::endl;
 
+                std::string onlineTopic = "marconautas/activeusers/" + std::string(m_username);
                 std::string onlineMessage = "online:" + std::string(m_username);
-                MQTTPublish("marconautas/marcohub", onlineMessage.c_str());
+                MQTTPublish(onlineTopic.c_str(), onlineMessage.c_str());
 
                 m_isLogged = true;
             }
@@ -241,9 +244,11 @@ void App::MQTTSubscribe(const char *topic)
 
 int App::onMessageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
-    std::string message((char *)message->payload, message->payloadlen);
+    std::string msgPayload(static_cast<char *>(message->payload), message->payloadlen);
 
-    std::cout << "Mensagem recebida no tópico " << topicName << ": " << message << std::endl;
+    std::cout << "Mensagem recebida no tópico " << topicName << ": " << msgPayload << std::endl;
+
+    return 0;
 }
 
 void App::MQTTPublish(const char *topic, const char *message)
@@ -252,6 +257,9 @@ void App::MQTTPublish(const char *topic, const char *message)
 
     MQTTClient_message msg = MQTTClient_message_initializer;
     msg.payload = (void *)message;
+    msg.payloadlen = (int)strlen(message);
+    msg.qos = 1;
+    msg.retained = 1;
 
     MQTTClient_deliveryToken token;
 
@@ -259,4 +267,6 @@ void App::MQTTPublish(const char *topic, const char *message)
     {
         throw std::runtime_error("Failed to publish message at topic" + std::string(topic) + " | Code: " + std::to_string(rc));
     }
+
+    std::cout << "Mensagem publicada no tópico " << topic << ": " << message << std::endl;
 }
