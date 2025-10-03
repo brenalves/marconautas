@@ -53,8 +53,9 @@ App::~App()
 {
     if (m_isLogged)
     {
+        std::string onlineTopic = "marconautas/activeusers/" + std::string(m_username);
         std::string offlineMessage = "offline:" + std::string(m_username);
-        MQTTPublish("marconautas/marcohub", offlineMessage.c_str());
+        MQTTPublish(onlineTopic.c_str(), offlineMessage.c_str());
     }
 
     // Libera recursos alocados pelo MQTTClient
@@ -131,17 +132,17 @@ void App::run()
                 std::cout << "Callbacks inicializadas com sucesso" << std::endl;
 
                 // Set opções de will
-                MQTTClient_willOptions will_option = MQTTClient_willOptions_initializer;
-                std::string offlineMessage = "offline:" + std::string(m_username);
-                will_option.message = offlineMessage.c_str();
-                will_option.topicName = "marconautas/marcohub";
-                will_option.qos = 1;
-                will_option.retained = 1;
-                std::cout << "Configurações de deconexão repentina configurada" << std::endl;
+                // MQTTClient_willOptions will_option = MQTTClient_willOptions_initializer;
+                // std::string offlineMessage = "offline:" + std::string(m_username);
+                // will_option.message = offlineMessage.c_str();
+                // will_option.topicName = "marconautas/a";
+                // will_option.qos = 1;
+                // will_option.retained = 1;
+                // std::cout << "Configurações de deconexão repentina configurada" << std::endl;
 
                 // Initialize opções de conexão
                 MQTTClient_connectOptions conn_options = MQTTClient_connectOptions_initializer;
-                conn_options.will = &will_option;
+                // conn_options.will = &will_option;
                 conn_options.keepAliveInterval = 20;
                 conn_options.cleansession = 1;
                 std::cout << "Configuracoes de cliente inicializadas" << std::endl;

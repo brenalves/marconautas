@@ -12,7 +12,7 @@
 
 #define WINDOW_DEFAULT_WIDTH 800
 #define WINDOW_DEFAULT_HEIGHT 600
-#define MQTT_URL "localhost:1883"
+#define MQTT_URL "tcp://test.mosquitto.org:1883"
 
 class App
 {
