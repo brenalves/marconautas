@@ -6,9 +6,8 @@ int main(int argc, char** argv)
 {
     try
     {
-        auto app = App::getInstance();
-        app->run();
-        delete app;
+        App app;
+        app.run();
     }
     catch(const std::exception& e)
     {

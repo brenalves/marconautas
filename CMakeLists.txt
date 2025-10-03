@@ -5,7 +5,6 @@ project(marconautas)
 add_executable(marconautas
     src/main.cpp
     src/app.cpp
-    src/gui.cpp
 
     deps/imgui/imgui.cpp
     deps/imgui/imgui_widgets.cpp
