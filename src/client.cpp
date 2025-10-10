@@ -1,35 +1,110 @@
 #include "client.h"
 
-#include <iostream>
-#include <MQTTClient.h>
-#include <chrono>
-#include <string>
-#include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
+Client* Client::_instance = nullptr;
 
-#define MQTT_URL "tcp://test.mosquitto.org:1883"
-
-Client::Client(const char* username)
-    : username(username),    
-      isLogged(false),       
-      mqtt_client(nullptr)   
+Client::Client(const char* address, const char* clientId)
+    : _address(address), _clientId(clientId)
 {
-    if (!initializeClient()) {
-        std::cerr << "Falha ao inicializar o cliente MQTT." << std::endl;
+    if(_instance)
+    {
+        throw std::runtime_error("Only one instance of Client can exist!!");
     }
-}
 
+    _instance = this;
+
+    if((_returnCode = MQTTClient_create(&_client, address, clientId, MQTTCLIENT_PERSISTENCE_NONE, nullptr)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create MQTT client, return code: " + std::to_string(_returnCode));
+    }
+
+    if((_returnCode = MQTTClient_setCallbacks(_client, nullptr, nullptr, Client::onMessageArrived, nullptr)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to set MQTT callbacks, return code: " + std::to_string(_returnCode));
+    }
+
+    std::cout << "MQTT client created successfully." << std::endl;
+}
 
 Client::~Client()
 {
-    // Libera recursos alocados pelo MQTTClient
-    MQTTClient_disconnect(mqtt_client, 1000);
-    MQTTClient_destroy(&mqtt_client);
+    MQTTClient_destroy(&_client);
 }
 
-bool Client::initializeClient()
+void Client::connect()
 {
+    MQTTClient_connectOptions connOpts = MQTTClient_connectOptions_initializer;
+    connOpts.keepAliveInterval = 20;
+    connOpts.cleansession = 1;
     
+    if((_returnCode = MQTTClient_connect(_client, &connOpts)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to connect to MQTT broker, return code: " + std::to_string(_returnCode));
+    }
+
+    std::cout << "Connected to MQTT broker successfully." << std::endl;
+}
+
+void Client::disconnect()
+{
+    if((_returnCode = MQTTClient_disconnect(_client, TIMEOUT)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to disconnect from MQTT broker, return code: " + std::to_string(_returnCode));
+    }
+
+    std::cout << "Disconnected from MQTT broker successfully." << std::endl;
+}
+
+void Client::subscribe(const char *topic)
+{
+    if((_returnCode = MQTTClient_subscribe(_client, topic, QOS)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to subscribe to topic " + std::string(topic) + ", return code: " + std::to_string(_returnCode));
+    }
+
+    std::cout << "Subscribed to topic " << topic << " successfully." << std::endl;
+}
+
+void Client::publish(const char *topic, Message &message, bool retained)
+{
+    MQTTClient_message pubMsg = MQTTClient_message_initializer;
+    pubMsg.payload = (void*)&message;
+    pubMsg.payloadlen = sizeof(message);
+    pubMsg.qos = QOS;
+    pubMsg.retained = retained;
+
+    if((_returnCode = MQTTClient_publishMessage(_client, topic, &pubMsg, nullptr)) != MQTTCLIENT_SUCCESS)
+    {
+        throw std::runtime_error("Failed to publish message to topic " + std::string(topic) + ", return code: " + std::to_string(_returnCode));
+    }
+
+    std::cout << "Published message to topic " << topic << " successfully." << std::endl;
+}
+
+int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message)
+{
+    Message* msg = (Message*)message->payload;
+
+    if(msg->sender == _instance->_clientId.c_str())
+    {
+        // Ignore messages sent by ourselves
+        MQTTClient_freeMessage(&message);
+        MQTTClient_free(topicName);
+        return 1;
+    }
+
+    // Check if the message is a status message
+    if(msg->type == MessageType::STATUS)
+    {
+        _instance->_onStatusMessage(msg);
+    }
+    else
+    {
+        std::cout << "Received non-status message from topic " << topicName << std::endl;
+    }
+    
+
+    MQTTClient_freeMessage(&message);
+    MQTTClient_free(topicName);
+
+    return 1;
 }

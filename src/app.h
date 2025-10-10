@@ -1,18 +1,14 @@
 #pragma once
 
-#include <memory>
-#include <GLFW/glfw3.h>
-#include <stdexcept>
-#include <MQTTClient.h>
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
 #include <iostream>
-#include <functional>
+#include <vector>
+#include <string>
 
-#define WINDOW_DEFAULT_WIDTH 800
-#define WINDOW_DEFAULT_HEIGHT 600
-#define MQTT_URL "tcp://test.mosquitto.org:1883"
+#include "client.h"
+#include "window.h"
+
+#define BROKER_ADDRESS "tcp://localhost:1883"
+#define TOPICS_PREFIX "devdev/marconautas/"
 
 class App
 {
@@ -22,28 +18,20 @@ public:
 
     void run();
 
-    inline void close() { m_running = false; }
-    
-    inline static App* getInstance() { return s_instance; }
-    
-private:
-    void MQTTSubscribe(const char* topic);
-    void MQTTPublish(const char* topic, const char* message);
-
-    static int onMessageArrived(void* context, char* topicName, int topicLen, MQTTClient_message* message);
+    inline static App* getInstance() { return _instance; }
 
 private:
-    GLFWwindow* m_window;
+    void onCloseButtonClick();
+    void onLoginButtonSubmit(const char* username);
+    void onStatusMessage(Message* message);
 
-    MQTTClient m_client;
+private:
+    Window* _window;
+    Client* _client;
 
-    char m_username[25];
+    bool _running;
 
-    bool m_running;
-    bool m_isLogged;
+    std::vector<std::string> _activeUsers;
 
-    std::vector<std::string> m_activeUsers;
-    std::unordered_map<std::string, std::function<void(const std::string&)>> m_chatCallbacks;
-
-    static App* s_instance;
+    static App* _instance;
 };
