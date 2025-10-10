@@ -1,6 +1,9 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 
 project(marconautas)
+
+add_subdirectory(deps/glfw)
+add_subdirectory(deps/paho.mqtt.c)
 
 add_executable(marconautas
     src/main.cpp
@@ -25,12 +28,13 @@ target_include_directories(marconautas
 target_link_libraries(marconautas
     PRIVATE
     paho-mqtt3c
-    glfw3
-    X11
+    glfw
 )
 
 if(WIN32)
     target_link_libraries(marconautas PRIVATE opengl32)
+
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     target_link_libraries(marconautas PRIVATE GL)
 endif()

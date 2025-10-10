@@ -8,7 +8,6 @@
 #include "window.h"
 
 #define BROKER_ADDRESS "tcp://localhost:1883"
-#define TOPICS_PREFIX "devdev/marconautas/"
 
 class App
 {
@@ -24,6 +23,7 @@ private:
     void onCloseButtonClick();
     void onLoginButtonSubmit(const char* username);
     void onStatusMessage(Message* message);
+    void onChatMessage(Message* message);
 
 private:
     Window* _window;
@@ -32,6 +32,8 @@ private:
     bool _running;
 
     std::vector<std::string> _activeUsers;
+    // std::unordered_map<std::string, std::vector<Message>> _userMessageBuffers;
+    // std::unordered_map<std::string, std::vector<Message>> _chats; // Key: username, Value: list of messages
 
     static App* _instance;
 };

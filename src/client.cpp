@@ -83,6 +83,14 @@ void Client::publish(const char *topic, Message &message, bool retained)
 int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
     Message* msg = (Message*)message->payload;
+    
+    if(message->payloadlen != sizeof(Message))
+    {
+        std::cout << "Received message with invalid size from topic " << topicName << std::endl;
+        MQTTClient_freeMessage(&message);
+        MQTTClient_free(topicName);
+        return 1;
+    }
 
     if(msg->sender == _instance->_clientId.c_str())
     {
@@ -97,11 +105,10 @@ int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTC
     {
         _instance->_onStatusMessage(msg);
     }
-    else
+    else    // Assumed to be a chat message
     {
-        std::cout << "Received non-status message from topic " << topicName << std::endl;
+        _instance->_onChatMessage(msg);
     }
-    
 
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);

@@ -13,14 +13,14 @@
 
 enum class MessageType
 {
-    STATUS,
+    STATUS = 3214,
     CHAT
 };
 struct Message
 {
     MessageType type;
-    const char* sender;
-    const char* content;
+    std::string sender;
+    std::string content;
     std::chrono::system_clock::time_point timestamp;
 };
 
@@ -31,6 +31,7 @@ public:
     ~Client();
 
     inline void setOnStatusMessageCallback(const std::function<void(Message*)>& callback) { _onStatusMessage = callback; }
+    inline void setOnChatMessageCallback(const std::function<void(Message*)>& callback) { _onChatMessage = callback; }
 
     void connect();
     void disconnect();
@@ -50,6 +51,7 @@ private:
     std::string _clientId;
 
     std::function<void(Message*)> _onStatusMessage;
+    std::function<void(Message*)> _onChatMessage;
 
     static Client* _instance;
 };

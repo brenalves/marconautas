@@ -41,6 +41,8 @@ Window::Window(int width, int height, const char *title)
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(_window, true); // Second param install
     ImGui_ImplOpenGL3_Init();
+
+    _username[0] = '\0';
 }
 
 Window::~Window()
@@ -68,16 +70,27 @@ void Window::beginFrame()
 void Window::showLogin()
 {
     ImGuiViewport *viewport = ImGui::GetMainViewport();
+
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    window_flags |= ImGuiWindowFlags_NoBackground; // Optional: make it fully transparent
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::Begin("DockSpaceHost", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
-    ImGui::End();
+
+    ImGui::Begin("DockSpaceHost", nullptr, window_flags);
     ImGui::PopStyleVar(2);
 
-    ImGui::DockSpace(ImGui::GetID("MyDockSpace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+    // Create the dockspace
+    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+    ImGui::End();
 
     if (ImGui::Begin("Login"))
     {
@@ -110,9 +123,9 @@ void Window::showMain()
 
     ImGui::DockSpace(ImGui::GetID("MyDockSpace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    if(ImGui::Begin("Active Users"))
+    if (ImGui::Begin("Active Users"))
     {
-        for(const auto& user : *_activeUsers)
+        for (const auto &user : *_activeUsers)
         {
             ImGui::Text("%s", user.c_str());
         }
@@ -122,16 +135,16 @@ void Window::showMain()
 
     if (ImGui::Begin("Options"))
     {
-        if(ImGui::Button("Logout"))
+        if (ImGui::Button("Logout"))
         {
-            if(_onCloseButtonClick)
+            if (_onCloseButtonClick)
                 _onCloseButtonClick();
         }
 
         ImGui::End();
     }
 
-    if(ImGui::Begin("Chats"))
+    if (ImGui::Begin("Chats"))
     {
         ImGui::Text("Chats will be here.");
         ImGui::End();
