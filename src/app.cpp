@@ -53,13 +53,14 @@ App::~App()
 {
     if (m_isLogged)
     {
-        std::string onlineTopic = "marconautas/activeusers/" + std::string(m_username);
+        std::string onlineTopic = "dev/marconautas/user/status/" + std::string(m_username);
         std::string offlineMessage = "offline:" + std::string(m_username);
         MQTTPublish(onlineTopic.c_str(), offlineMessage.c_str());
     }
 
     // Libera recursos alocados pelo MQTTClient
-    std::cout << "Destruindo cliente MQTT" << std::endl;;
+    std::cout << "Destruindo cliente MQTT" << std::endl;
+    ;
     MQTTClient_disconnect(m_client, 1000);
     MQTTClient_destroy(&m_client);
 
@@ -132,13 +133,13 @@ void App::run()
                 std::cout << "Callbacks inicializadas com sucesso" << std::endl;
 
                 // Set opções de will
-                // MQTTClient_willOptions will_option = MQTTClient_willOptions_initializer;
-                // std::string offlineMessage = "offline:" + std::string(m_username);
-                // will_option.message = offlineMessage.c_str();
-                // will_option.topicName = "marconautas/a";
-                // will_option.qos = 1;
-                // will_option.retained = 1;
-                // std::cout << "Configurações de deconexão repentina configurada" << std::endl;
+                MQTTClient_willOptions will_option = MQTTClient_willOptions_initializer;
+                std::string offlineMessage = "offline:" + std::string(m_username);
+                will_option.message = offlineMessage.c_str();
+                will_option.topicName = "marconautas/a";
+                will_option.qos = 1;
+                will_option.retained = 1;
+                std::cout << "Configurações de deconexão repentina configurada" << std::endl;
 
                 // Initialize opções de conexão
                 MQTTClient_connectOptions conn_options = MQTTClient_connectOptions_initializer;
@@ -146,7 +147,7 @@ void App::run()
                 conn_options.keepAliveInterval = 20;
                 conn_options.cleansession = 1;
                 std::cout << "Configuracoes de cliente inicializadas" << std::endl;
-                
+
                 // Conecta cliente
                 if ((rc = MQTTClient_connect(m_client, &conn_options)) != MQTTCLIENT_SUCCESS)
                 {
@@ -157,22 +158,14 @@ void App::run()
                 glfwSetWindowTitle(m_window, ("Marconautas - " + std::string(m_username)).c_str());
 
                 // Inscrição no tópico MarcoHub e tópico pessoal
-                try
-                {
-                    MQTTSubscribe("marconautas/marcohub");
-                    std::string ownTopic = "marconautas/user/" + std::string(m_username);
-                    MQTTSubscribe(ownTopic.c_str());
-                    MQTTSubscribe("marconautas/activeusers/#");
-                }
-                catch (const std::exception &e)
-                {
-                    std::cerr << e.what() << '\n';
-                    close();
-                }
+                MQTTSubscribe("dev/marconautas/marcohub");
+                std::string ownTopic = "dev/marconautas/user/" + std::string(m_username);
+                MQTTSubscribe(ownTopic.c_str());
+                MQTTSubscribe("dev/marconautas/user/status/+");
 
                 std::cout << "Inscrições realizadas com sucesso" << std::endl;
 
-                std::string onlineTopic = "marconautas/activeusers/" + std::string(m_username);
+                std::string onlineTopic = "dev/marconautas/user/status/" + std::string(m_username);
                 std::string onlineMessage = "online:" + std::string(m_username);
                 MQTTPublish(onlineTopic.c_str(), onlineMessage.c_str());
 
@@ -185,10 +178,10 @@ void App::run()
             ImGui::Begin("Usuários ativos");
             ImGui::End();
 
-            if(ImGui::Begin("Options"))
+            if (ImGui::Begin("Options"))
             {
 
-                if(ImGui::Button("Disconnect"))
+                if (ImGui::Button("Disconnect"))
                 {
                     close();
                 }
@@ -196,19 +189,19 @@ void App::run()
                 ImGui::End();
             }
 
-            if(ImGui::Begin("Chats"))
+            if (ImGui::Begin("Chats"))
             {
-                if(ImGui::BeginTabBar("Chats a"))
+                if (ImGui::BeginTabBar("Chats a"))
                 {
-                    
-                    if(ImGui::BeginTabItem("Marcohub"))
+
+                    if (ImGui::BeginTabItem("Marcohub"))
                     {
                         ImGui::Text("Conteudo aba marcohub");
 
                         ImGui::EndTabItem();
                     }
 
-                    if(ImGui::BeginTabItem("luanzinho"))
+                    if (ImGui::BeginTabItem("luanzinho"))
                     {
                         ImGui::Text("Conteudo aba luanzinho");
 
@@ -249,7 +242,10 @@ int App::onMessageArrived(void *context, char *topicName, int topicLen, MQTTClie
 
     std::cout << "Mensagem recebida no tópico " << topicName << ": " << msgPayload << std::endl;
 
-    return 0;
+    MQTTClient_freeMessage(&message);
+    MQTTClient_free(topicName);
+
+    return 1;
 }
 
 void App::MQTTPublish(const char *topic, const char *message)
