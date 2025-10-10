@@ -169,14 +169,33 @@ void App::run()
                 std::string onlineMessage = "online:" + std::string(m_username);
                 MQTTPublish(onlineTopic.c_str(), onlineMessage.c_str());
 
+                m_chatCallbacks.insert({std::string("MarcoHub"), [this](const std::string &message)
+                                          {
+                                              MQTTPublish("dev/marconautas/marcohub", message.c_str());
+                                          }});
+
                 m_isLogged = true;
             }
             ImGui::End();
         }
         else
         {
-            ImGui::Begin("Usuários ativos");
-            ImGui::End();
+            if (ImGui::Begin("Usuários ativos"))
+            {
+                for (const auto &user : m_activeUsers)
+                {
+                    ImGui::Text("%s", user.c_str());
+                    ImGui::SameLine();
+                    if (ImGui::Button(("Chat##" + user).c_str()))
+                    {
+                        m_chatCallbacks[user] = [user, this](const std::string &message)
+                        {
+                            MQTTPublish(("dev/marconautas/user/" + user).c_str(), message.c_str());
+                        };
+                    }
+                }
+                ImGui::End();
+            }
 
             if (ImGui::Begin("Options"))
             {
@@ -194,18 +213,35 @@ void App::run()
                 if (ImGui::BeginTabBar("Chats a"))
                 {
 
-                    if (ImGui::BeginTabItem("Marcohub"))
+                    for (auto it = m_chatCallbacks.begin(); it != m_chatCallbacks.end(); ++it)
                     {
-                        ImGui::Text("Conteudo aba marcohub");
+                        const std::string &username = it->first;
+                        auto &callback = it->second;
 
-                        ImGui::EndTabItem();
-                    }
+                        bool open = true;
+                        if (ImGui::BeginTabItem(username.c_str(), &open))
+                        {
+                            static char message[256] = "";
 
-                    if (ImGui::BeginTabItem("luanzinho"))
-                    {
-                        ImGui::Text("Conteudo aba luanzinho");
+                            ImGui::InputText("Message", message, sizeof(message));
+                            ImGui::SameLine();
+                            if (ImGui::Button("Send"))
+                            {
+                                if (strlen(message) > 0)
+                                {
+                                    callback(std::string(message));
+                                    message[0] = '\0'; // Clear input after sending
+                                }
+                            }
 
-                        ImGui::EndTabItem();
+                            ImGui::EndTabItem();
+                        }
+
+                        if (!open)
+                        {
+                            m_chatCallbacks.erase(it);
+                            break; // Important to break here to avoid iterator invalidation
+                        }
                     }
 
                     ImGui::EndTabBar();
@@ -240,7 +276,42 @@ int App::onMessageArrived(void *context, char *topicName, int topicLen, MQTTClie
 {
     std::string msgPayload(static_cast<char *>(message->payload), message->payloadlen);
 
-    std::cout << "Mensagem recebida no tópico " << topicName << ": " << msgPayload << std::endl;
+    if(msgPayload.find(App::getInstance()->m_username) != std::string::npos) {
+        // Ignora mensagens que contenham o próprio nome de usuário
+        MQTTClient_freeMessage(&message);
+        MQTTClient_free(topicName);
+        return 1;
+    }
+
+    if (msgPayload.find("online:") == 0)
+    {
+        std::string username = msgPayload.substr(7); // Extrai o nome de usuário após "online:"
+        std::cout << "Usuário online: " << username << std::endl;
+
+        // Adiciona o usuário à lista se não estiver presente
+        auto &activeUsers = App::getInstance()->m_activeUsers;
+        if (std::find(activeUsers.begin(), activeUsers.end(), username) == activeUsers.end())
+        {
+            activeUsers.push_back(username);
+        }
+    }
+    else if (msgPayload.find("offline:") == 0)
+    {
+        std::string username = msgPayload.substr(8); // Extrai o nome de usuário após "offline:"
+        std::cout << "Usuário offline: " << username << std::endl;
+
+        // Remove o usuário da lista se estiver presente
+        auto &activeUsers = App::getInstance()->m_activeUsers;
+        auto it = std::find(activeUsers.begin(), activeUsers.end(), username);
+        if (it != activeUsers.end())
+        {
+            activeUsers.erase(it);
+        }
+    }
+    else
+    {
+        std::cout << "Mensagem recebida no tópico " << topicName << ": " << msgPayload << std::endl;
+    }
 
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);

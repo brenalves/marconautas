@@ -32,7 +32,6 @@ private:
 
     static int onMessageArrived(void* context, char* topicName, int topicLen, MQTTClient_message* message);
 
-
 private:
     GLFWwindow* m_window;
 
@@ -43,7 +42,8 @@ private:
     bool m_running;
     bool m_isLogged;
 
-    std::vector<std::string> m_users;
+    std::vector<std::string> m_activeUsers;
+    std::unordered_map<std::string, std::function<void(const std::string&)>> m_chatCallbacks;
 
     static App* s_instance;
 };
