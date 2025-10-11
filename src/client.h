@@ -7,21 +7,22 @@
 #include <queue>
 #include <iostream>
 #include <functional>
+#include <cstring>
 
 #define QOS 1
 #define TIMEOUT 10000L
 
-enum class MessageType
+enum MessageType
 {
     STATUS = 3214,
     CHAT
 };
 struct Message
 {
-    MessageType type;
-    std::string sender;
-    std::string content;
-    std::chrono::system_clock::time_point timestamp;
+    int type; // Use MessageType enum values
+    char sender[64];
+    char content[256];
+    std::chrono::time_point<std::chrono::system_clock> timestamp; // Timestamp
 };
 
 class Client
@@ -31,7 +32,7 @@ public:
     ~Client();
 
     inline void setOnStatusMessageCallback(const std::function<void(Message*)>& callback) { _onStatusMessage = callback; }
-    inline void setOnChatMessageCallback(const std::function<void(Message*)>& callback) { _onChatMessage = callback; }
+    inline void setOnChatMessageCallback(const std::function<void(const char*, Message*)>& callback) { _onChatMessage = callback; }
 
     void connect();
     void disconnect();
@@ -51,7 +52,7 @@ private:
     std::string _clientId;
 
     std::function<void(Message*)> _onStatusMessage;
-    std::function<void(Message*)> _onChatMessage;
+    std::function<void(const char* , Message*)> _onChatMessage;
 
     static Client* _instance;
 };

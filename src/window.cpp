@@ -11,6 +11,7 @@ Window::Window(int width, int height, const char *title)
     glfwDefaultWindowHints();
 
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     _window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (!_window)
@@ -26,6 +27,15 @@ Window::Window(int width, int height, const char *title)
                                {
         Window *win = static_cast<Window *>(glfwGetWindowUserPointer(window));
         win->_onCloseButtonClick(); });
+
+    // Set window icon
+    GLFWimage icon;
+    icon.pixels = stbi_load("images/icon.png", &icon.width, &icon.height, 0, 4);
+    if (icon.pixels)
+    {
+        glfwSetWindowIcon(_window, 1, &icon);
+        stbi_image_free(icon.pixels);
+    }
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -43,6 +53,7 @@ Window::Window(int width, int height, const char *title)
     ImGui_ImplOpenGL3_Init();
 
     _username[0] = '\0';
+    _groupName[0] = '\0';
 }
 
 Window::~Window()
@@ -69,41 +80,35 @@ void Window::beginFrame()
 
 void Window::showLogin()
 {
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    // Centered login modal-like window (non-movable, non-resizable)
+    const ImVec2 win_size(500.f, 125.f);
+    const ImVec2 win_pos((float)_width * 0.5f - win_size.x * 0.5f,
+                         (float)_height * 0.5f - win_size.y * 0.5f);
+    ImGui::SetNextWindowPos(win_pos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(win_size, ImGuiCond_Always);
 
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::SetNextWindowViewport(viewport->ID);
-
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
-    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    window_flags |= ImGuiWindowFlags_NoBackground; // Optional: make it fully transparent
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-    ImGui::Begin("DockSpaceHost", nullptr, window_flags);
-    ImGui::PopStyleVar(2);
-
-    // Create the dockspace
-    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-
-    ImGui::End();
-
-    if (ImGui::Begin("Login"))
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking;
+    if (ImGui::Begin("Login", nullptr, flags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         ImGui::Text("Bem vindo ao Marcomundo");
-        ImGui::Text("Your username:");
+        ImGui::Spacing();
+
+        ImGui::Text("Seu nome de usuário:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(200);
-        ImGui::InputText("##inputLogin", _username, sizeof(_username));
-        if (ImGui::Button("Entrar"))
+        bool submitted = ImGui::InputText("##username", _username, sizeof(_username), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        if (ImGui::Button("Entrar") || submitted)
         {
-            if (_onLoginButtonSubmit)
+            if (_onLoginButtonSubmit && _username[0] != '\0')
                 _onLoginButtonSubmit(_username);
         }
+
+        // Break lines
+        ImGui::NewLine();
+        ImGui::NewLine();
+
+        ImGui::TextUnformatted("Marconautas © 2025 - Todos os direitos reservados.");
 
         ImGui::End();
     }
@@ -111,42 +116,156 @@ void Window::showLogin()
 
 void Window::showMain()
 {
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::Begin("DockSpaceHost", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
-    ImGui::End();
-    ImGui::PopStyleVar(2);
+    // Layout metrics
+    const float left_w = 320.f;
+    const float groups_h = 260.f;
+    const float options_h = 120.f;
+    const float spacing = 6.f;
+    const ImGuiWindowFlags wflags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking;
 
-    ImGui::DockSpace(ImGui::GetID("MyDockSpace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-
-    if (ImGui::Begin("Active Users"))
+    // Active Users (top-left)
+    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(left_w, (float)_height - options_h - groups_h - spacing), ImGuiCond_Always);
+    if (ImGui::Begin("Usuários Ativos", nullptr, wflags))
     {
+        int userCount = 0;
         for (const auto &user : *_activeUsers)
         {
-            ImGui::Text("%s", user.c_str());
+            ImGui::TextUnformatted(user.c_str());
+            ImGui::SameLine();
+
+            // If already in chat, show label instead of button
+            if (_chats->find(user) != _chats->end())
+            {
+                ImGui::TextUnformatted(" (em conversa)");
+            }
+            else if (ImGui::Button("Chat"))
+            {
+                // Open chat with user
+                _onChatRequestClick(user.c_str());
+            }
+
+            userCount++;
         }
+
+        if (userCount == 0)
+            ImGui::TextUnformatted("Nenhum usuário ativo.");
 
         ImGui::End();
     }
 
-    if (ImGui::Begin("Options"))
+    // Active Groups (middle-left)
+    ImGui::SetNextWindowPos(ImVec2(0.f, (float)_height - options_h - groups_h - spacing * 0.5f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(left_w, groups_h), ImGuiCond_Always);
+    if (ImGui::Begin("Grupos Ativos", nullptr, wflags | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
-        if (ImGui::Button("Logout"))
+        ImGui::InputText("##groupname", _groupName, sizeof(_groupName));
+        ImGui::SameLine();
+        if (ImGui::Button("Criar Grupo"))
+        {
+            // Create group logic (not implemented)
+        }
+
+        ImGui::NewLine();
+        ImGui::TextUnformatted("Grupos disponíveis:");
+        ImGui::Separator();
+
+        ImGui::BeginChild("GroupList", ImVec2(0, groups_h - 60), false);
+
+        int groupCount = 0;
+        for (auto &chatPair : *_chats)
+        {
+            if (chatPair.second.isGroup)
+            {
+                ImGui::TextUnformatted(chatPair.first.c_str());
+                ImGui::SameLine();
+                if (ImGui::Button("Entrar"))
+                {
+                    // Open group chat
+                    _onChatRequestClick(chatPair.first.c_str());
+                }
+
+                groupCount++;
+            }
+        }
+
+        if (groupCount == 0)
+            ImGui::TextUnformatted("Nenhum grupo ativo.");
+
+        ImGui::EndChild();
+
+        ImGui::End();
+    }
+
+    // Options (bottom-left)
+    ImGui::SetNextWindowPos(ImVec2(0.f, (float)_height - options_h), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(left_w, options_h), ImGuiCond_Always);
+    if (ImGui::Begin("Opções", nullptr, wflags))
+    {
+        if (ImGui::Button("Sair"))
         {
             if (_onCloseButtonClick)
                 _onCloseButtonClick();
         }
-
         ImGui::End();
     }
 
-    if (ImGui::Begin("Chats"))
+    // Chats (right side fills remaining)
+    ImGui::SetNextWindowPos(ImVec2(left_w + spacing, 0.f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2((float)_width - (left_w + spacing), (float)_height), ImGuiCond_Always);
+    if (ImGui::Begin("Chats", nullptr, wflags))
     {
-        ImGui::Text("Chats will be here.");
+        if (_chats && ImGui::BeginTabBar("ChatTabs"))
+        {
+            for (auto &chatPair : *_chats)
+            {
+                const std::string &chatId = chatPair.first;
+                std::queue<Message> &messages = chatPair.second.messages;
+
+                if (!chatPair.second.isOpen)
+                {
+                    _chats->erase(chatId);
+                    break;
+                }
+
+                if (ImGui::BeginTabItem(chatId.c_str(), chatId == "Marcohub" ? nullptr : &chatPair.second.isOpen))
+                {
+                    // Messages list area
+                    ImGui::BeginChild("Messages", ImVec2(0, -34), true);
+                    std::queue<Message> temp = messages; // copy for iteration
+                    while (!temp.empty())
+                    {
+                        const Message &msg = temp.front();
+
+                        // Format timestamp to HH:MM
+                        std::time_t timestamp = std::chrono::system_clock::to_time_t(msg.timestamp);
+                        std::tm *tm_info = std::localtime(&timestamp);
+                        timestamp = tm_info->tm_hour * 100 + tm_info->tm_min;
+                        ImGui::Text("[%02d:%02d] %s: %s", tm_info->tm_hour, tm_info->tm_min, msg.sender, msg.content);
+                        temp.pop();
+                    }
+                    ImGui::EndChild();
+
+                    // Input area
+                    ImGui::Text("Mensagem:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(-80);
+                    bool enter = ImGui::InputText("##message", chatPair.second.draft, sizeof(chatPair.second.draft), ImGuiInputTextFlags_EnterReturnsTrue);
+                    ImGui::SameLine();
+                    if (ImGui::Button("Enviar") || enter)
+                    {
+                        if (chatPair.second.draft[0] != '\0')
+                        {
+                            _onSendMessage(chatId.c_str(), chatPair.second.draft);
+                            chatPair.second.draft[0] = '\0';
+                        }
+                    }
+
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
+        }
         ImGui::End();
     }
 }
