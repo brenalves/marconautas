@@ -136,7 +136,17 @@ void App::onChatRequestClick(const char *target)
 void App::onChatRequestAccept(const char *target)
 {
     std::cout << "Chat request accepted from " << target << std::endl;
+    _chats[target] = Chat(); // Create new chat
     _pendingRequestsFrom.erase(target);
+    
+    // Send confirmation message
+    std::string topic = "dev/marconautas/user/" + std::string(target) + "/control";
+    Message controlMsg;
+    controlMsg.type = MessageType::REQUEST;
+    strcpy(controlMsg.sender, _client->getClientId().c_str());
+    strcpy(controlMsg.content, "chat_accepted");
+    controlMsg.timestamp = std::chrono::system_clock::now();
+    _client->publish(topic.c_str(), controlMsg);
 }
 
 void App::onChatRequestDecline(const char *target)
@@ -220,5 +230,29 @@ void App::onChatMessage(const char* topic, Message *message)
 
 void App::onRequestMessage(const char *topic, Message *message)
 {
-    _pendingRequestsFrom[message->sender] = true;
+    if(strcmp(message->content, "chat_accepted") == 0)
+    {
+        std::cout << "Chat request accepted by " << message->sender << std::endl;
+        _chats[message->sender] = Chat(); // Create new chat
+        _pendingRequestsTo.erase(message->sender);
+        return;
+    }
+    else if(strcmp(message->content, "chat_request") == 0)
+    {
+        std::cout << "Received chat request from " << message->sender << std::endl;
+        if(_chats.find(message->sender) != _chats.end())
+        {
+            std::cout << "Chat with " << message->sender << " already exists. Ignoring request." << std::endl;
+            // Send control message to accept the chat
+            std::string topic = "dev/marconautas/user/" + std::string(message->sender) + "/control";
+            Message controlMsg;
+            controlMsg.type = MessageType::REQUEST;
+            strcpy(controlMsg.sender, _client->getClientId().c_str());
+            strcpy(controlMsg.content, "chat_accepted");
+            controlMsg.timestamp = std::chrono::system_clock::now();
+            _client->publish(topic.c_str(), controlMsg);
+            return;
+        }
+        _pendingRequestsFrom[message->sender] = true;
+    }
 }

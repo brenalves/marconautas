@@ -1,5 +1,7 @@
 if libdecor error: dont run it in vscode
 
+git submodule init
+git submodule update
 cmake -S . -B build
 cd build
 make
