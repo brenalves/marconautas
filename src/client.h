@@ -15,7 +15,8 @@
 enum MessageType
 {
     STATUS = 3214,
-    CHAT
+    CHAT,
+    REQUEST
 };
 struct Message
 {
@@ -33,6 +34,7 @@ public:
 
     inline void setOnStatusMessageCallback(const std::function<void(Message*)>& callback) { _onStatusMessage = callback; }
     inline void setOnChatMessageCallback(const std::function<void(const char*, Message*)>& callback) { _onChatMessage = callback; }
+    inline void setOnRequestMessageCallback(const std::function<void(const char*, Message*)>& callback) { _onRequestMessage = callback; }
 
     void connect();
     void disconnect();
@@ -53,6 +55,7 @@ private:
 
     std::function<void(Message*)> _onStatusMessage;
     std::function<void(const char* , Message*)> _onChatMessage;
+    std::function<void(const char*, Message*)> _onRequestMessage;
 
     static Client* _instance;
 };

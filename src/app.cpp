@@ -15,10 +15,14 @@ App::App()
     _window->setOnCloseButtonClick(std::bind(&App::onCloseButtonClick, this));
     _window->setOnLoginButtonSubmit(std::bind(&App::onLoginButtonSubmit, this, std::placeholders::_1));
     _window->setOnChatRequestClick(std::bind(&App::onChatRequestClick, this, std::placeholders::_1));
+    _window->setOnChatRequestAccept(std::bind(&App::onChatRequestAccept, this, std::placeholders::_1));
+    _window->setOnChatRequestDecline(std::bind(&App::onChatRequestDecline, this, std::placeholders::_1));
 
     _window->setOnSendMessage(std::bind(&App::onSendMessage, this, std::placeholders::_1, std::placeholders::_2));
     _window->setActiveUsersVector(&_activeUsers);
     _window->setChatsMap(&_chats);
+    _window->setPendingRequestsFromMap(&_pendingRequestsFrom);
+    _window->setPendingRequestsToMap(&_pendingRequestsTo);
 
     _client = nullptr; // Client will be initialized after login
 
@@ -83,11 +87,14 @@ void App::onLoginButtonSubmit(const char *username)
         _client = new Client(BROKER_ADDRESS, username);
         _client->setOnStatusMessageCallback(std::bind(&App::onStatusMessage, this, std::placeholders::_1));
         _client->setOnChatMessageCallback(std::bind(&App::onChatMessage, this, std::placeholders::_1, std::placeholders::_2));
+        _client->setOnRequestMessageCallback(std::bind(&App::onRequestMessage, this, std::placeholders::_1, std::placeholders::_2));
         _client->connect();
         _client->subscribe("dev/marconautas/user/status/+"); // Subscribe to user status updates
         _client->subscribe("dev/marconautas/marcohub");      // Subscribe to global chat
         std::string ownTopic = "dev/marconautas/user/" + std::string(username);
         _client->subscribe(ownTopic.c_str());               // Subscribe to own chat topic
+        std::string controlTopic = "dev/marconautas/user/" + std::string(username) + "/control";
+        _client->subscribe(controlTopic.c_str());           // Subscribe to control messages
 
         // Publish online status
         std::string statusTopic = "dev/marconautas/user/status/" + std::string(username);
@@ -115,19 +122,27 @@ void App::onChatRequestClick(const char *target)
 {
     if(_chats.find(target) == _chats.end())
     {
-        _chats.insert({target, Chat()});
+        std::string topic = "dev/marconautas/user/" + std::string(target) + "/control";
 
-        std::string topic = "dev/marconautas/user/" + std::string(target);
-
-        Message welcomeMsg;
-        welcomeMsg.type = MessageType::CHAT;
-        strcpy(welcomeMsg.sender, _client->getClientId().c_str());
-        strcpy(welcomeMsg.content, "Oi! Vamos conversar?");
-        welcomeMsg.timestamp = std::chrono::system_clock::now();
-        _client->publish(topic.c_str(), welcomeMsg);
-
-        _chats[target].messages.push(welcomeMsg);
+        Message controlMsg;
+        controlMsg.type = MessageType::REQUEST;
+        strcpy(controlMsg.sender, _client->getClientId().c_str());
+        strcpy(controlMsg.content, "chat_request");
+        controlMsg.timestamp = std::chrono::system_clock::now();
+        _client->publish(topic.c_str(), controlMsg);;
     }
+}
+
+void App::onChatRequestAccept(const char *target)
+{
+    std::cout << "Chat request accepted from " << target << std::endl;
+    _pendingRequestsFrom.erase(target);
+}
+
+void App::onChatRequestDecline(const char *target)
+{
+    std::cout << "Chat request declined from " << target << std::endl;
+    _pendingRequestsFrom.erase(target);
 }
 
 void App::onSendMessage(const char *topic, const char *message)
@@ -201,4 +216,9 @@ void App::onChatMessage(const char* topic, Message *message)
 
         _chats[message->sender] = newChat;
     }
+}
+
+void App::onRequestMessage(const char *topic, Message *message)
+{
+    _pendingRequestsFrom[message->sender] = true;
 }

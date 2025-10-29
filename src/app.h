@@ -24,10 +24,13 @@ private:
     void onCloseButtonClick();
     void onLoginButtonSubmit(const char* username);
     void onChatRequestClick(const char* target);
+    void onChatRequestAccept(const char* target);
+    void onChatRequestDecline(const char* target);
     void onSendMessage(const char* topic, const char* message);
 
     void onStatusMessage(Message* message);
     void onChatMessage(const char* topic, Message* message);
+    void onRequestMessage(const char* topic, Message* message);
 
 private:
     Window* _window;
@@ -37,6 +40,8 @@ private:
 
     std::vector<std::string> _activeUsers;
     std::unordered_map<std::string, Chat> _chats;
+    std::unordered_map<std::string, bool> _pendingRequestsFrom;
+    std::unordered_map<std::string, bool> _pendingRequestsTo;
 
     static App* _instance;
 };

@@ -109,6 +109,10 @@ int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTC
     {
         _instance->_onChatMessage(topicName, msg);
     }
+    else if (msg->type == MessageType::REQUEST)
+    {
+        _instance->_onRequestMessage(topicName, msg);
+    }
 
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);

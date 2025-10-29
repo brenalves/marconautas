@@ -31,10 +31,15 @@ public:
     inline void setOnCloseButtonClick(const std::function<void()>& callback) { _onCloseButtonClick = callback; }
     inline void setOnLoginButtonSubmit(const std::function<void(const char*)>& callback) { _onLoginButtonSubmit = callback; }
     inline void setOnChatRequestClick(const std::function<void(const char*)>& callback) { _onChatRequestClick = callback; }
+    inline void setOnChatRequestAccept(const std::function<void(const char*)>& callback) { _onChatRequestAccept = callback; }
+    inline void setOnChatRequestDecline(const std::function<void(const char*)>& callback) { _onChatRequestDecline = callback; }
     inline void setOnSendMessage(const std::function<void(const char*, const char*)>& callback) { _onSendMessage = callback; }
+
     
     inline void setActiveUsersVector(std::vector<std::string>* users) { _activeUsers = users; }
     inline void setChatsMap(std::unordered_map<std::string, Chat>* chats) { _chats = chats; }
+    inline void setPendingRequestsFromMap(std::unordered_map<std::string, bool>* requests) { _pendingRequestsFrom = requests; }
+    inline void setPendingRequestsToMap(std::unordered_map<std::string, bool>* requests) { _pendingRequestsTo = requests; }
 
     void beginFrame();
     void showLogin();
@@ -55,8 +60,12 @@ private:
     std::function<void()> _onCloseButtonClick;
     std::function<void(const char*)> _onLoginButtonSubmit;
     std::function<void(const char*)> _onChatRequestClick;
+    std::function<void(const char*)> _onChatRequestAccept;
+    std::function<void(const char*)> _onChatRequestDecline;
     std::function<void(const char*, const char*)> _onSendMessage;
 
     std::vector<std::string>* _activeUsers;
     std::unordered_map<std::string, Chat>* _chats;
+    std::unordered_map<std::string, bool>* _pendingRequestsFrom;
+    std::unordered_map<std::string, bool>* _pendingRequestsTo;
 };

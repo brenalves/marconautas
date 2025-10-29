@@ -126,9 +126,9 @@ void Window::showMain()
     // Active Users (top-left)
     ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(left_w, (float)_height - options_h - groups_h - spacing), ImGuiCond_Always);
-    if (ImGui::Begin("Usuários Ativos", nullptr, wflags))
+    std::string title = "Usuários Ativos (" + std::to_string(_activeUsers ? _activeUsers->size() : 0) + ")";
+    if (ImGui::Begin(title.c_str(), nullptr, wflags))
     {
-        int userCount = 0;
         for (const auto &user : *_activeUsers)
         {
             ImGui::TextUnformatted(user.c_str());
@@ -139,16 +139,32 @@ void Window::showMain()
             {
                 ImGui::TextUnformatted(" (em conversa)");
             }
+            else if (_pendingRequestsTo->find(user) != _pendingRequestsTo->end())
+            {
+                ImGui::TextUnformatted(" (solicitação enviada)");
+            }
+            else if (_pendingRequestsFrom->find(user) != _pendingRequestsFrom->end())
+            {
+                if(ImGui::Button("Aceitar"))
+                {
+                    // Accept chat request
+                    _onChatRequestAccept(user.c_str());
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("Recusar"))
+                {
+                    // Decline chat request
+                    _onChatRequestDecline(user.c_str());
+                }
+            }
             else if (ImGui::Button("Chat"))
             {
                 // Open chat with user
                 _onChatRequestClick(user.c_str());
             }
-
-            userCount++;
         }
 
-        if (userCount == 0)
+        if (_activeUsers->size() == 0)
             ImGui::TextUnformatted("Nenhum usuário ativo.");
 
         ImGui::End();
