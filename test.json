@@ -1,0 +1,9 @@
+{
+    "luannauta": {
+        "messages": [
+        { "sender": "luannauta", "message": "Oi", "timestamp": "2023-10-01T10:00:00Z" },
+        { "sender": "luannauta", "message": "Como vai?", "timestamp": "2023-10-01T10:05:00Z" },
+        { "sender": "luannauta", "message": "Vamos nos encontrar amanhã.", "timestamp": "2023-10-01T10:10:00Z" },
+        { "sender": "breno", "message": "Oi, tudo bem?", "timestamp": "2023-10-01T10:15:00Z" }
+    ]}
+}

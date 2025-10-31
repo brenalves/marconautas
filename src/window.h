@@ -47,6 +47,7 @@ public:
     void endFrame();
 
     void setTitle(const char* title);
+    void setUsername(const char* username);
 
 private:
     GLFWwindow* _window;

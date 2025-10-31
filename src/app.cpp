@@ -1,5 +1,7 @@
 #include "app.h"
 
+using json = nlohmann::json;
+
 App *App::_instance = nullptr;
 
 App::App()
@@ -25,8 +27,29 @@ App::App()
     _window->setPendingRequestsToMap(&_pendingRequestsTo);
 
     _client = nullptr; // Client will be initialized after login
+    _ownStatusMessageSent = false;
 
     _chats.insert({"Marcohub", Chat()}); // Global chat
+
+    // Load or create JSON database
+    if (!std::filesystem::exists(JSON_PATH)) {
+        std::cout << "Arquivo não existe. Criando JSON vazio...\n";
+
+        _db = json::object();
+
+        // Cria o arquivo e escreve o JSON vazio
+        std::ofstream dbFile(JSON_PATH);
+        dbFile << std::setw(4) << _db << std::endl;
+        dbFile.close();
+    } else { 
+        std::ifstream dbFile(JSON_PATH);
+
+        // Verifica se o arquivo está vazio
+        std::cout << "Arquivo existe. Carregando...\n";
+        dbFile >> _db;
+
+        dbFile.close();
+    }
 }
 
 App::~App()
@@ -45,7 +68,7 @@ App::~App()
         strcpy(statusMessage.content, "offline");
         statusMessage.timestamp = std::chrono::system_clock::now();
         _client->publish(statusTopic.c_str(), statusMessage, true);
-        
+
         _client->disconnect();
         delete _client;
     }
@@ -89,12 +112,12 @@ void App::onLoginButtonSubmit(const char *username)
         _client->setOnChatMessageCallback(std::bind(&App::onChatMessage, this, std::placeholders::_1, std::placeholders::_2));
         _client->setOnRequestMessageCallback(std::bind(&App::onRequestMessage, this, std::placeholders::_1, std::placeholders::_2));
         _client->connect();
-        _client->subscribe("dev/marconautas/user/status/+"); // Subscribe to user status updates
         _client->subscribe("dev/marconautas/marcohub");      // Subscribe to global chat
         std::string ownTopic = "dev/marconautas/user/" + std::string(username);
-        _client->subscribe(ownTopic.c_str());               // Subscribe to own chat topic
+        _client->subscribe("dev/marconautas/user/status/+"); // Subscribe to user status updates
+        _client->subscribe(ownTopic.c_str()); // Subscribe to own chat topic
         std::string controlTopic = "dev/marconautas/user/" + std::string(username) + "/control";
-        _client->subscribe(controlTopic.c_str());           // Subscribe to control messages
+        _client->subscribe(controlTopic.c_str()); // Subscribe to control messages
 
         // Publish online status
         std::string statusTopic = "dev/marconautas/user/status/" + std::string(username);
@@ -105,10 +128,11 @@ void App::onLoginButtonSubmit(const char *username)
         strcpy(statusMessage.content, "online");
         statusMessage.timestamp = std::chrono::system_clock::now();
         _client->publish(statusTopic.c_str(), statusMessage, true);
+        _ownStatusMessageSent = true;
 
         _window->setTitle((std::string("Marconautas - ") + username).c_str());
     }
-    catch (const std::exception &e)
+    catch (const std::runtime_error &e)
     {
         std::cout << "Erro ao conectar: " << e.what() << std::endl;
 
@@ -116,11 +140,18 @@ void App::onLoginButtonSubmit(const char *username)
         _running = false;
         return;
     }
+    catch(const std::domain_error &e)
+    {
+        std::cout << "Erro de dominio ao conectar: " << e.what() << std::endl;
+
+        _window->setUsername("");
+        return;
+    }
 }
 
 void App::onChatRequestClick(const char *target)
 {
-    if(_chats.find(target) == _chats.end())
+    if (_chats.find(target) == _chats.end())
     {
         std::string topic = "dev/marconautas/user/" + std::string(target) + "/control";
 
@@ -129,7 +160,8 @@ void App::onChatRequestClick(const char *target)
         strcpy(controlMsg.sender, _client->getClientId().c_str());
         strcpy(controlMsg.content, "chat_request");
         controlMsg.timestamp = std::chrono::system_clock::now();
-        _client->publish(topic.c_str(), controlMsg);;
+        _client->publish(topic.c_str(), controlMsg);
+        ;
     }
 }
 
@@ -138,7 +170,7 @@ void App::onChatRequestAccept(const char *target)
     std::cout << "Chat request accepted from " << target << std::endl;
     _chats[target] = Chat(); // Create new chat
     _pendingRequestsFrom.erase(target);
-    
+
     // Send confirmation message
     std::string topic = "dev/marconautas/user/" + std::string(target) + "/control";
     Message controlMsg;
@@ -158,7 +190,7 @@ void App::onChatRequestDecline(const char *target)
 void App::onSendMessage(const char *topic, const char *message)
 {
     std::cout << "Sending message to topic " << topic << ": " << message << std::endl;
-    
+
     Message chatMessage;
     chatMessage.type = MessageType::CHAT;
     strcpy(chatMessage.sender, _client->getClientId().c_str());
@@ -166,7 +198,7 @@ void App::onSendMessage(const char *topic, const char *message)
     chatMessage.timestamp = std::chrono::system_clock::now();
 
     std::string fullTopic;
-    if(strcmp(topic, "Marcohub") == 0)
+    if (strcmp(topic, "Marcohub") == 0)
         fullTopic = "dev/marconautas/marcohub";
     else
         fullTopic = "dev/marconautas/user/" + std::string(topic);
@@ -195,16 +227,28 @@ void App::onStatusMessage(Message *message)
             _activeUsers.erase(it);
         }
     }
-
+    
     std::cout << "User " << message->sender << " is " << message->content << std::endl;
 }
 
-void App::onChatMessage(const char* topic, Message *message)
+void App::onChatMessage(const char *topic, Message *message)
 {
-    if(strcmp(topic, "dev/marconautas/marcohub") == 0)
+    std::time_t timestamp = std::chrono::system_clock::to_time_t(message->timestamp);
+    std::tm *tm_info = std::localtime(&timestamp);
+    char timeStr[6];
+    std::snprintf(timeStr, sizeof(timeStr), "%02d:%02d", tm_info->tm_hour, tm_info->tm_min);
+
+    _db[topic]["messages"].push_back(json{{"sender", std::string(message->sender)}, {"content", std::string(message->content)}, {"timestamp", timeStr}});
+    std::cout << std::setw(4) << _db << std::endl;
+    std::cout << std::string(message->sender) << std::endl;
+    std::cout << std::string(message->content) << std::endl;
+    std::cout << timeStr << std::endl;
+    
+    if (strcmp(topic, "dev/marconautas/marcohub") == 0)
     {
         // Global chat message
         _chats["Marcohub"].messages.push(*message);
+
         return;
     }
 
@@ -230,17 +274,17 @@ void App::onChatMessage(const char* topic, Message *message)
 
 void App::onRequestMessage(const char *topic, Message *message)
 {
-    if(strcmp(message->content, "chat_accepted") == 0)
+    if (strcmp(message->content, "chat_accepted") == 0)
     {
         std::cout << "Chat request accepted by " << message->sender << std::endl;
         _chats[message->sender] = Chat(); // Create new chat
         _pendingRequestsTo.erase(message->sender);
         return;
     }
-    else if(strcmp(message->content, "chat_request") == 0)
+    else if (strcmp(message->content, "chat_request") == 0)
     {
         std::cout << "Received chat request from " << message->sender << std::endl;
-        if(_chats.find(message->sender) != _chats.end())
+        if (_chats.find(message->sender) != _chats.end())
         {
             std::cout << "Chat with " << message->sender << " already exists. Ignoring request." << std::endl;
             // Send control message to accept the chat

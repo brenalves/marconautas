@@ -4,6 +4,7 @@ project(marconautas)
 
 add_subdirectory(deps/glfw)
 add_subdirectory(deps/paho.mqtt.c)
+add_subdirectory(deps/json)
 
 add_executable(marconautas
     src/main.cpp
@@ -23,14 +24,18 @@ add_executable(marconautas
 
 target_include_directories(marconautas
     PRIVATE
+    ${CMAKE_SOURCE_DIR}/deps/glfw/include
     ${CMAKE_SOURCE_DIR}/deps/imgui/
     ${CMAKE_SOURCE_DIR}/deps/stb_image/include
+    ${CMAKE_SOURCE_DIR}/deps/paho.mqtt.c/src
+    ${CMAKE_SOURCE_DIR}/deps/json/include
 )
 
 target_link_libraries(marconautas
     PRIVATE
     paho-mqtt3c
     glfw
+    nlohmann_json::nlohmann_json
 )
 
 add_custom_command(

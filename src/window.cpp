@@ -299,3 +299,8 @@ void Window::setTitle(const char *title)
     _title = title;
     glfwSetWindowTitle(_window, title);
 }
+
+void Window::setUsername(const char *username)
+{
+    strcpy(_username, username);
+}

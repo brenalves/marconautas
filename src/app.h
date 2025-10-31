@@ -4,11 +4,15 @@
 #include <vector>
 #include <string>
 #include <queue>
+#include <thread>
+#include <nlohmann/json.hpp>
+#include <fstream>
 
 #include "client.h"
 #include "window.h"
 
 #define BROKER_ADDRESS "tcp://test.mosquitto.org:1883"
+#define JSON_PATH "../db.json"
 
 class App
 {
@@ -36,7 +40,10 @@ private:
     Window* _window;
     Client* _client;
 
+    nlohmann::json _db;
+
     bool _running;
+    bool _ownStatusMessageSent;
 
     std::vector<std::string> _activeUsers;
     std::unordered_map<std::string, Chat> _chats;
