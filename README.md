@@ -5,6 +5,9 @@ git submodule update
 cmake -S . -B build
 cd build
 make
+./marconautas
 
 probably for first non-glfw lib user will occur error of missing dependencies, just install every one
 e.g: libxcursor-dev, libxi-dev, libxinerama-dev, libxrandr-dev, etc...
+
+Authors: Breno Soares Alves and Luan Alecxander Krzyzaniak

@@ -14,12 +14,20 @@
 
 #include "client.h"
 
-struct Chat
+struct PrivateChat
 {
     std::queue<Message> messages;
     char draft[256]; // Draft message being composed
     bool isOpen = true; // Is the chat tab open
-    bool isGroup = false; // Is this chat a group chat
+};
+
+struct GroupChat
+{
+    std::queue<Message> messages;
+    char draft[256]; // Draft message being composed
+    bool isOpen = true; // Is the chat tab open
+    std::string groupName; // Name of the group
+    std::string owner; // Owner of the group
 };
 
 class Window
@@ -33,13 +41,17 @@ public:
     inline void setOnChatRequestClick(const std::function<void(const char*)>& callback) { _onChatRequestClick = callback; }
     inline void setOnChatRequestAccept(const std::function<void(const char*)>& callback) { _onChatRequestAccept = callback; }
     inline void setOnChatRequestDecline(const std::function<void(const char*)>& callback) { _onChatRequestDecline = callback; }
-    inline void setOnSendMessage(const std::function<void(const char*, const char*)>& callback) { _onSendMessage = callback; }
+    inline void setOnSendMessage(const std::function<void(const char*, const char*, int)>& callback) { _onSendMessage = callback; }
+    inline void setOnCreateGroupClick(const std::function<void(const char*)>& callback) { _onCreateGroupClick = callback; }
 
-    
     inline void setActiveUsersVector(std::vector<std::string>* users) { _activeUsers = users; }
-    inline void setChatsMap(std::unordered_map<std::string, Chat>* chats) { _chats = chats; }
+    inline void setChatsMap(std::unordered_map<std::string, PrivateChat>* chats) { _chats = chats; }
+    inline void setGroupChatsMap(std::unordered_map<std::string, GroupChat>* groupChats) { _groupChats = groupChats; }
     inline void setPendingRequestsFromMap(std::unordered_map<std::string, bool>* requests) { _pendingRequestsFrom = requests; }
     inline void setPendingRequestsToMap(std::unordered_map<std::string, bool>* requests) { _pendingRequestsTo = requests; }
+    inline void setGroupRequestsFromMap(std::unordered_map<std::string, bool>* requests) { _groupRequestFrom = requests; }
+    inline void setGroupRequestsToMap(std::unordered_map<std::string, bool>* requests) { _groupRequestTo = requests; }
+    inline void setAllGroupsMap(std::unordered_map<std::string, GroupChat>* allGroups) { _allGroups = allGroups; }
 
     void beginFrame();
     void showLogin();
@@ -63,10 +75,15 @@ private:
     std::function<void(const char*)> _onChatRequestClick;
     std::function<void(const char*)> _onChatRequestAccept;
     std::function<void(const char*)> _onChatRequestDecline;
-    std::function<void(const char*, const char*)> _onSendMessage;
+    std::function<void(const char*, const char*, int)> _onSendMessage;
+    std::function<void(const char*)> _onCreateGroupClick;
 
     std::vector<std::string>* _activeUsers;
-    std::unordered_map<std::string, Chat>* _chats;
+    std::unordered_map<std::string, PrivateChat>* _chats;
+    std::unordered_map<std::string, GroupChat>* _groupChats;
+    std::unordered_map<std::string, GroupChat>* _allGroups;
     std::unordered_map<std::string, bool>* _pendingRequestsFrom;
     std::unordered_map<std::string, bool>* _pendingRequestsTo;
+    std::unordered_map<std::string, bool>* _groupRequestFrom;
+    std::unordered_map<std::string, bool>* _groupRequestTo;
 };

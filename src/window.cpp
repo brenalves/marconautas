@@ -133,7 +133,6 @@ void Window::showMain()
         {
             ImGui::TextUnformatted(user.c_str());
             ImGui::SameLine();
-
             // If already in chat, show label instead of button
             if (_chats->find(user) != _chats->end())
             {
@@ -145,13 +144,13 @@ void Window::showMain()
             }
             else if (_pendingRequestsFrom->find(user) != _pendingRequestsFrom->end())
             {
-                if(ImGui::Button("Aceitar"))
+                if (ImGui::Button("Aceitar"))
                 {
                     // Accept chat request
                     _onChatRequestAccept(user.c_str());
                 }
                 ImGui::SameLine();
-                if(ImGui::Button("Recusar"))
+                if (ImGui::Button("Recusar"))
                 {
                     // Decline chat request
                     _onChatRequestDecline(user.c_str());
@@ -180,6 +179,11 @@ void Window::showMain()
         if (ImGui::Button("Criar Grupo"))
         {
             // Create group logic (not implemented)
+            if (_onCreateGroupClick && _groupName[0] != '\0')
+            {
+                _onCreateGroupClick(_groupName);
+                _groupName[0] = '\0';
+            }
         }
 
         ImGui::NewLine();
@@ -189,20 +193,33 @@ void Window::showMain()
         ImGui::BeginChild("GroupList", ImVec2(0, groups_h - 60), false);
 
         int groupCount = 0;
-        for (auto &chatPair : *_chats)
+        for (auto &chatPair : *_allGroups)
         {
-            if (chatPair.second.isGroup)
-            {
-                ImGui::TextUnformatted(chatPair.first.c_str());
-                ImGui::SameLine();
-                if (ImGui::Button("Entrar"))
-                {
-                    // Open group chat
-                    _onChatRequestClick(chatPair.first.c_str());
-                }
+            ImGui::TextUnformatted(chatPair.first.c_str());
+            ImGui::SameLine();
+            ImGui::TextUnformatted("- dono: ");
+            ImGui::SameLine();
+            ImGui::TextUnformatted(chatPair.second.owner.c_str());
+            ImGui::SameLine();
 
-                groupCount++;
+            if (chatPair.second.owner != _username)
+            {
+                if(chatPair.second.isOpen)
+                    ImGui::TextUnformatted(" (em conversa)");
+                else
+                {
+                    if (ImGui::Button("Entrar"))
+                    {
+                        // Open group chat
+                    }
+                }
             }
+            else
+            {
+                ImGui::TextUnformatted(" (dono)");
+            }
+
+            groupCount++;
         }
 
         if (groupCount == 0)
@@ -233,14 +250,14 @@ void Window::showMain()
     {
         if (_chats && ImGui::BeginTabBar("ChatTabs"))
         {
-            for (auto &chatPair : *_chats)
+            for (auto &chatPair : *_groupChats)
             {
                 const std::string &chatId = chatPair.first;
                 std::queue<Message> &messages = chatPair.second.messages;
 
                 if (!chatPair.second.isOpen)
                 {
-                    _chats->erase(chatId);
+                    _groupChats->erase(chatId);
                     break;
                 }
 
@@ -272,7 +289,55 @@ void Window::showMain()
                     {
                         if (chatPair.second.draft[0] != '\0')
                         {
-                            _onSendMessage(chatId.c_str(), chatPair.second.draft);
+                            _onSendMessage(chatId.c_str(), chatPair.second.draft, MessageType::GROUP_CHAT);
+                            chatPair.second.draft[0] = '\0';
+                        }
+                    }
+
+                    ImGui::EndTabItem();
+                }
+            }
+
+            for (auto &chatPair : *_chats)
+            {
+                const std::string &chatId = chatPair.first;
+                std::queue<Message> &messages = chatPair.second.messages;
+
+                if (!chatPair.second.isOpen)
+                {
+                    _chats->erase(chatId);
+                    break;
+                }
+
+                if (ImGui::BeginTabItem(chatId.c_str(), &chatPair.second.isOpen))
+                {
+                    // Messages list area
+                    ImGui::BeginChild("Messages", ImVec2(0, -34), true);
+                    std::queue<Message> temp = messages; // copy for iteration
+                    while (!temp.empty())
+                    {
+                        const Message &msg = temp.front();
+
+                        // Format timestamp to HH:MM
+                        std::time_t timestamp = std::chrono::system_clock::to_time_t(msg.timestamp);
+                        std::tm *tm_info = std::localtime(&timestamp);
+                        timestamp = tm_info->tm_hour * 100 + tm_info->tm_min;
+                        ImGui::Text("[%02d:%02d] %s: %s", tm_info->tm_hour, tm_info->tm_min, msg.sender, msg.content);
+                        temp.pop();
+                    }
+                    ImGui::EndChild();
+
+                    // Input area
+                    ImGui::Text("Mensagem:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(-80);
+                    bool enter = ImGui::InputText("##message", chatPair.second.draft, sizeof(chatPair.second.draft), ImGuiInputTextFlags_EnterReturnsTrue);
+                    ImGui::SameLine();
+                    if (ImGui::Button("Enviar") || enter)
+                    {
+                        if (chatPair.second.draft[0] != '\0')
+                        {
+                            _onSendMessage(chatId.c_str(), chatPair.second.draft, MessageType::PRIVATE_CHAT);
                             chatPair.second.draft[0] = '\0';
                         }
                     }

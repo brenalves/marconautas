@@ -94,10 +94,13 @@ int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTC
 
     if (strcmp(msg->sender, _instance->getClientId().c_str()) == 0)
     {
-        // Ignore messages sent by ourselves
-        MQTTClient_freeMessage(&message);
-        MQTTClient_free(topicName);
-        return 1;
+        if(msg->type != MessageType::GROUP_CHAT_CREATION)
+        {
+            // Ignore messages sent by ourselves
+            MQTTClient_freeMessage(&message);
+            MQTTClient_free(topicName);
+            return 1;
+        }
     }
 
     // Check if the message is a status message
@@ -105,13 +108,29 @@ int Client::onMessageArrived(void *context, char *topicName, int topicLen, MQTTC
     {
         _instance->_onStatusMessage(msg);
     }
-    else if (msg->type == MessageType::CHAT)
+    else if (msg->type == MessageType::PRIVATE_CHAT)
     {
         _instance->_onChatMessage(topicName, msg);
     }
-    else if (msg->type == MessageType::REQUEST)
+    else if (msg->type == MessageType::PRIVATE_REQUEST)
     {
         _instance->_onRequestMessage(topicName, msg);
+    }
+    else if (msg->type == MessageType::GROUP_CHAT)
+    {
+        _instance->_onChatMessage(topicName, msg);
+    }
+    else if (msg->type == MessageType::GROUP_REQUEST)
+    {
+        _instance->_onRequestMessage(topicName, msg);
+    }
+    else if (msg->type == MessageType::GROUP_CHAT_CREATION)
+    {
+        _instance->_onChatCreationMessage(topicName, msg);
+    }
+    else
+    {
+        std::cout << "Received message with unknown type from topic " << topicName << std::endl;
     }
 
     MQTTClient_freeMessage(&message);
