@@ -39,24 +39,74 @@ App::App()
     // Load or create JSON database
     if (!std::filesystem::exists(JSON_PATH))
     {
-        std::cout << "Arquivo não existe. Criando JSON vazio...\n";
+        std::cout << "Arquivo de persistência não existe. Criando JSON vazio...\n";
 
+        // Create structure
         _db = json::object();
 
-        // Cria o arquivo e escreve o JSON vazio
+        // Create local file and write an empty JSON
         std::ofstream dbFile(JSON_PATH);
         dbFile << std::setw(4) << _db << std::endl;
         dbFile.close();
-    }
-    else
-    {
+    } else {
+
+        // Load file on structure
         std::ifstream dbFile(JSON_PATH);
-
-        // Verifica se o arquivo está vazio
-        std::cout << "Arquivo existe. Carregando...\n";
         dbFile >> _db;
-
         dbFile.close();
+
+        // Load file messages to memory
+        for (auto& [topic, topicData] : _db.items())
+        {
+            if (!topicData.contains("messages"))
+                continue;
+
+            for (auto& msgJson : topicData["messages"])
+            {
+                // Initialize message structure
+                Message msg;
+
+                // Fill message
+                strcpy(msg.sender, msgJson["sender"].get<std::string>().c_str());
+                strcpy(msg.content, msgJson["content"].get<std::string>().c_str());
+                std::string timeStr = msgJson["timestamp"].get<std::string>();
+                int hour = std::stoi(timeStr.substr(0, 2));
+                int min  = std::stoi(timeStr.substr(3, 2));
+                std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                std::tm tm_info = *std::localtime(&now);
+                tm_info.tm_hour = hour;
+                tm_info.tm_min = min;
+                tm_info.tm_sec = 0;
+                msg.timestamp = std::chrono::system_clock::from_time_t(std::mktime(&tm_info));
+
+                // Group messages
+                if (topic == "dev/marconautas/marcohub" || topic.rfind("dev/marconautas/group/", 0) == 0)
+                {
+                    msg.type = GROUP_CHAT; // Mensagens de grupo
+                    std::string groupName = (topic == "dev/marconautas/marcohub") ? "Marcohub"  : topic.substr(std::string("dev/marconautas/group/").length());
+                    
+                    if (_groupChats.find(groupName) == _groupChats.end())
+                    {
+                        _groupChats[groupName] = GroupChat();
+                        _groupChats[groupName].groupName = groupName;
+                    }
+                    
+                    _groupChats[groupName].messages.push(msg);
+                }
+                // Private messages
+                else
+                {
+                    msg.type = PRIVATE_CHAT; 
+                    std::string user = topic.substr(std::string("dev/marconautas/user/").length());
+                    if (_chats.find(user) == _chats.end())
+                    {
+                        _chats[user] = PrivateChat();
+                    }
+                    _chats[user].messages.push(msg);
+                }
+
+            }
+        }
     }
 }
 
@@ -218,6 +268,8 @@ void App::onSendMessage(const char *topic, const char *message, int type)
         _groupChats[topic].messages.push(chatMessage);
     else if (type == MessageType::PRIVATE_CHAT)
         _chats[topic].messages.push(chatMessage);
+
+    saveMessageToDb(fullTopic, &chatMessage);
 }
 
 void App::onCreateGroupClick(const char *groupName)
@@ -266,6 +318,44 @@ void App::onStatusMessage(Message *message)
     std::cout << "User " << message->sender << " is " << message->content << std::endl;
 }
 
+void App::saveMessageToDb(const std::string& topic, Message* message)
+{
+    // Prevent multiple "group created" messages being saved 
+    if (message->type == MessageType::GROUP_CHAT_CREATION)
+    {
+        if (_db.contains(topic) && _db[topic].contains("messages"))
+        {
+            for (auto &msgJson : _db[topic]["messages"])
+            {
+                if (msgJson["type"].get<int>() == static_cast<int>(MessageType::GROUP_CHAT_CREATION))
+                {
+                    
+                    return;
+                }
+            }
+        }
+    }
+
+    // Format timestamp
+    std::time_t timestamp = std::chrono::system_clock::to_time_t(message->timestamp);
+    std::tm* tm_info = std::localtime(&timestamp);
+    char timeStr[6];
+    std::snprintf(timeStr, sizeof(timeStr), "%02d:%02d", tm_info->tm_hour, tm_info->tm_min);
+
+    // Save to structure
+    _db[topic]["messages"].push_back(json{
+        {"sender", std::string(message->sender)},
+        {"content", std::string(message->content)},
+        {"timestamp", timeStr}
+    });
+
+    // Save on file
+    std::ofstream dbFile(JSON_PATH);
+    dbFile << std::setw(4) << _db << std::endl;
+    dbFile.close();
+}
+
+
 void App::onChatMessage(const char *topic, Message *message)
 {
     std::time_t timestamp = std::chrono::system_clock::to_time_t(message->timestamp);
@@ -273,8 +363,8 @@ void App::onChatMessage(const char *topic, Message *message)
     char timeStr[6];
     std::snprintf(timeStr, sizeof(timeStr), "%02d:%02d", tm_info->tm_hour, tm_info->tm_min);
 
-    _db[topic]["messages"].push_back(json{{"sender", std::string(message->sender)}, {"content", std::string(message->content)}, {"timestamp", timeStr}});
-    std::cout << std::setw(4) << _db << std::endl;
+    saveMessageToDb(topic, message);
+
     std::cout << std::string(message->sender) << std::endl;
     std::cout << std::string(message->content) << std::endl;
     std::cout << timeStr << std::endl;

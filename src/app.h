@@ -37,6 +37,7 @@ private:
     void onChatMessage(const char* topic, Message* message);
     void onRequestMessage(const char* topic, Message* message);
     void onChatCreationMessage(const char* topic, Message* message);
+    void saveMessageToDb(const std::string& topic, Message* message);
 
 private:
     Window* _window;
