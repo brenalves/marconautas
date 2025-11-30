@@ -1,1 +1,73 @@
-{}
+{
+    "dev/marconautas/group/brenoteste": {
+        "messages": [
+            {
+                "content": "New group chat created",
+                "sender": "breno",
+                "timestamp": "14:49"
+            },
+            {
+                "content": "New group chat created",
+                "sender": "breno",
+                "timestamp": "14:49"
+            },
+            {
+                "content": "New group chat created",
+                "sender": "breno",
+                "timestamp": "14:49"
+            },
+            {
+                "content": "New group chat created",
+                "sender": "breno",
+                "timestamp": "14:49"
+            },
+            {
+                "content": "New group chat created",
+                "sender": "breno",
+                "timestamp": "14:49"
+            }
+        ]
+    },
+    "dev/marconautas/marcohub": {
+        "messages": [
+            {
+                "content": "oi",
+                "sender": "asd",
+                "timestamp": "21:09"
+            },
+            {
+                "content": "eee",
+                "sender": "asd",
+                "timestamp": "21:09"
+            }
+        ]
+    },
+    "dev/marconautas/user/breno": {
+        "messages": [
+            {
+                "content": "bah",
+                "sender": "asd",
+                "timestamp": "21:09"
+            },
+            {
+                "content": "sdfdsf",
+                "sender": "asd",
+                "timestamp": "21:09"
+            },
+            {
+                "content": "asdd",
+                "sender": "asdad",
+                "timestamp": "21:26"
+            }
+        ]
+    },
+    "dev/marconautas/user/brenoteste": {
+        "messages": [
+            {
+                "content": "asd",
+                "sender": "asdad",
+                "timestamp": "21:26"
+            }
+        ]
+    }
+}

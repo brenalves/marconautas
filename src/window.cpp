@@ -156,7 +156,7 @@ void Window::showMain()
                     _onChatRequestDecline(user.c_str());
                 }
             }
-            else if (ImGui::Button("Chat"))
+            else if (ImGui::Button(("Chat##" + user).c_str()))
             {
                 // Open chat with user
                 _onChatRequestClick(user.c_str());
