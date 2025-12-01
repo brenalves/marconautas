@@ -161,6 +161,22 @@ void Window::showMain()
                 // Open chat with user
                 _onChatRequestClick(user.c_str());
             }
+
+            if(_groupRequestFrom->find(user) != _groupRequestFrom->end())
+            {
+                ImGui::SameLine();
+                if(ImGui::Button("Aceitar##grupo"))
+                {
+                    // Accept group request
+                    auto groupit = _groupRequestFrom->find(user);
+                    _onGroupRequestAccept(groupit->second.c_str());
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("Recusar##grupo"))
+                {
+                    // Decline group request
+                }
+            }
         }
 
         if (_activeUsers->size() == 0)
@@ -200,23 +216,22 @@ void Window::showMain()
             ImGui::TextUnformatted("- dono: ");
             ImGui::SameLine();
             ImGui::TextUnformatted(chatPair.second.owner.c_str());
-            ImGui::SameLine();
 
             if (chatPair.second.owner != _username)
             {
+                ImGui::SameLine();
                 if(chatPair.second.isOpen)
-                    ImGui::TextUnformatted(" (em conversa)");
+                {
+                    ImGui::TextUnformatted(" (em conversa)");    
+                }
                 else
                 {
-                    if (ImGui::Button("Entrar"))
+                    if (ImGui::Button(("Entrar##" + chatPair.second.groupName).c_str()))
                     {
                         // Open group chat
+                        _onGroupRequestClick(chatPair.second.groupName.c_str());
                     }
                 }
-            }
-            else
-            {
-                ImGui::TextUnformatted(" (dono)");
             }
 
             groupCount++;

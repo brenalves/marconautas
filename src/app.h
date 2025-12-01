@@ -29,9 +29,11 @@ private:
     void onLoginButtonSubmit(const char* username);
     void onChatRequestClick(const char* target);
     void onChatRequestAccept(const char* target);
+    void onGroupRequestAccept(const char* group);
     void onChatRequestDecline(const char* target);
     void onSendMessage(const char* topic, const char* message, int type);
     void onCreateGroupClick(const char* groupName);
+    void onGroupRequestClick(const char* groupName);
 
     void onStatusMessage(Message* message);
     void onChatMessage(const char* topic, Message* message);
@@ -54,7 +56,7 @@ private:
     std::unordered_map<std::string, GroupChat> _allGroups;
     std::unordered_map<std::string, bool> _pendingRequestsFrom;
     std::unordered_map<std::string, bool> _pendingRequestsTo;
-    std::unordered_map<std::string, bool> _groupRequestFrom;
+    std::unordered_map<std::string, std::string> _groupRequestFrom;
     std::unordered_map<std::string, bool> _groupRequestTo;
 
     static App* _instance;

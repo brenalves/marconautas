@@ -19,7 +19,7 @@ enum MessageType
     GROUP_CHAT,
     PRIVATE_REQUEST,
     GROUP_REQUEST,
-    GROUP_CHAT_CREATION
+    GROUP_CHAT_CREATION,
 };
 struct Message
 {

@@ -19,7 +19,9 @@ App::App()
     _window->setOnChatRequestClick(std::bind(&App::onChatRequestClick, this, std::placeholders::_1));
     _window->setOnChatRequestAccept(std::bind(&App::onChatRequestAccept, this, std::placeholders::_1));
     _window->setOnChatRequestDecline(std::bind(&App::onChatRequestDecline, this, std::placeholders::_1));
+    _window->setOnGroupRequestAccept(std::bind(&App::onChatRequestAccept, this, std::placeholders::_1));
     _window->setOnCreateGroupClick(std::bind(&App::onCreateGroupClick, this, std::placeholders::_1));
+    _window->setOnGroupRequestClick(std::bind(&App::onGroupRequestClick, this, std::placeholders::_1));
     _window->setOnSendMessage(std::bind(&App::onSendMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     
     _window->setActiveUsersVector(&_activeUsers);
@@ -240,6 +242,11 @@ void App::onChatRequestAccept(const char *target)
     _client->publish(topic.c_str(), controlMsg);
 }
 
+void App::onGroupRequestAccept(const char *group)
+{
+    std::cout << group << std::endl;
+}
+
 void App::onChatRequestDecline(const char *target)
 {
     std::cout << "Chat request declined from " << target << std::endl;
@@ -282,6 +289,7 @@ void App::onCreateGroupClick(const char *groupName)
     newChat.groupName = groupName;
     newChat.owner = _client->getClientId();
     _groupChats[groupName] = newChat;
+    _allGroups[groupName] = newChat;
 
     Message groupMessage;
     groupMessage.type = MessageType::GROUP_CHAT_CREATION;
@@ -291,6 +299,7 @@ void App::onCreateGroupClick(const char *groupName)
     _client->publish(("dev/marconautas/group/" + std::string(groupName)).c_str(), groupMessage, true);
 
     _client->subscribe(("dev/marconautas/group/" + std::string(groupName)).c_str());
+    _client->subscribe(("dev/marconautas/group/" + std::string(groupName) + "/control").c_str());
 
     _groupChats[groupName].messages.push(groupMessage);
 }
@@ -416,36 +425,54 @@ void App::onChatMessage(const char *topic, Message *message)
 
 void App::onRequestMessage(const char *topic, Message *message)
 {
-    if (strcmp(message->content, "chat_accepted") == 0)
+    if(message->type == MessageType::PRIVATE_REQUEST)
     {
-        std::cout << "Chat request accepted by " << message->sender << std::endl;
-        _chats[message->sender] = PrivateChat(); // Create new chat
-        _pendingRequestsTo.erase(message->sender);
-        return;
-    }
-    else if (strcmp(message->content, "chat_request") == 0)
-    {
-        std::cout << "Received chat request from " << message->sender << std::endl;
-        if (_chats.find(message->sender) != _chats.end())
+        if (strcmp(message->content, "chat_accepted") == 0)
         {
-            std::cout << "Chat with " << message->sender << " already exists. Ignoring request." << std::endl;
-            // Send control message to accept the chat
-            std::string topic = "dev/marconautas/user/" + std::string(message->sender) + "/control";
-            Message controlMsg;
-            controlMsg.type = MessageType::PRIVATE_REQUEST;
-            strcpy(controlMsg.sender, _client->getClientId().c_str());
-            strcpy(controlMsg.content, "chat_accepted");
-            controlMsg.timestamp = std::chrono::system_clock::now();
-            _client->publish(topic.c_str(), controlMsg);
+            std::cout << "Chat request accepted by " << message->sender << std::endl;
+            _chats[message->sender] = PrivateChat(); // Create new chat
+            _pendingRequestsTo.erase(message->sender);
             return;
         }
-        _pendingRequestsFrom[message->sender] = true;
+        else if (strcmp(message->content, "chat_request") == 0)
+        {
+            std::cout << "Received chat request from " << message->sender << std::endl;
+            if (_chats.find(message->sender) != _chats.end())
+            {
+                std::cout << "Chat with " << message->sender << " already exists. Ignoring request." << std::endl;
+                // Send control message to accept the chat
+                std::string topic = "dev/marconautas/user/" + std::string(message->sender) + "/control";
+                Message controlMsg;
+                controlMsg.type = MessageType::PRIVATE_REQUEST;
+                strcpy(controlMsg.sender, _client->getClientId().c_str());
+                strcpy(controlMsg.content, "chat_accepted");
+                controlMsg.timestamp = std::chrono::system_clock::now();
+                _client->publish(topic.c_str(), controlMsg);
+                return;
+            }
+            _pendingRequestsFrom[message->sender] = true;
+        }
+    }
+    else if (message->type == MessageType::GROUP_REQUEST)
+    {
+        std::string groupName = std::string(topic).substr(std::string("dev/marconautas/group/").length());
+        if(strcmp(message->content, "chat_request") == 0)
+        {
+            std::cout << "Received group request from " << message->sender << std::endl;
+            _groupRequestFrom[message->sender] = groupName;
+        }
+        else if(strcmp(message->content, "chat_accepted"))
+        {
+
+            std::cout << "Group request accepted by " << message->sender << std::endl;
+            _groupChats[groupName] = GroupChat();
+            _groupRequestTo.erase(groupName);
+        }
     }
 }
 
 void App::onChatCreationMessage(const char *topic, Message *message)
 {
-
     std::string groupName = std::string(topic).substr(std::string("dev/marconautas/group/").length());
     if (_groupChats.find(groupName) == _groupChats.end())
     {
@@ -454,5 +481,21 @@ void App::onChatCreationMessage(const char *topic, Message *message)
         _allGroups[groupName].owner = std::string(message->sender);
         _allGroups[groupName].isOpen = false;
         std::cout << "New group chat created: " << groupName << " by " << message->sender << std::endl;
+    }
+}
+
+void App::onGroupRequestClick(const char* group)
+{
+    if (_groupChats.find(group) == _groupChats.end())
+    {
+        std::string topic = "dev/marconautas/group/" + std::string(group) + "/control";
+
+        Message controlMsg;
+        controlMsg.type = MessageType::GROUP_REQUEST;
+        strcpy(controlMsg.sender, _client->getClientId().c_str());
+        strcpy(controlMsg.content, "chat_request");
+        controlMsg.timestamp = std::chrono::system_clock::now();
+        _client->publish(topic.c_str(), controlMsg);
+        _groupRequestTo[group] = true;
     }
 }
